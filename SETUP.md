@@ -1,77 +1,69 @@
 # VoidBot — Setup
 
-Bot di collegamento account VoidCyber ↔ Discord.
-Comandi: `/link`, `/unlink`, `/rank`, `/leaderboard`.
+VoidCyber ↔ Discord account linking bot.
+Commands: `/link`, `/unlink`, `/rank`, `/leaderboard`.
 
 ---
 
 ## 1. Database (VoidCyber)
 
-Applica la migration al DB D1 di produzione:
+Apply the migration to the D1 production database:
 
 ```bash
 npx wrangler d1 execute voidcyber-db --remote --file=migrations/023_discord_link.sql
 ```
 
-Aggiunge `discord_id` + `discord_username` alla tabella `users` e crea la
-tabella `discord_link_codes`.
+This adds `discord_id` + `discord_username` to the `users` table and creates the `discord_link_codes` table.
 
-## 2. Secret condiviso
+## 2. Shared Secret
 
-Genera una stringa segreta:
+Generate a random secret string:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Mettila **uguale** in due posti:
+Set the **same value** in two places:
 
-- **Vercel** → progetto VoidCyber → Settings → Environment Variables →
-  `DISCORD_BOT_SECRET` (Production). È lo stesso posto dove hai `AUTH_SECRET`,
-  `CLOUDFLARE_API_TOKEN`, ecc. Dopo averla aggiunta, fai un nuovo deploy (Redeploy).
-- **Bot** → file `.env` → `DISCORD_BOT_SECRET`.
+- **Vercel** → VoidCyber project → Settings → Environment Variables → `DISCORD_BOT_SECRET` (Production). After adding it, trigger a new deploy (Redeploy).
+- **Bot** → `.env` file → `DISCORD_BOT_SECRET`.
 
-Senza questo secret le API `/api/discord/*` rispondono `403`.
+Without this secret all `/api/discord/*` API calls will return `403`.
 
-> Nota: il sito gira su **Vercel**; su Cloudflare c'è solo il database **D1**,
-> che l'app raggiunge via REST API. Per questo le env var (incluse quelle
-> Cloudflare) vanno su Vercel. Il comando `wrangler d1 execute` del punto 1 è
-> solo accesso da CLI al database — non c'entra con l'hosting.
+> Note: the site runs on **Vercel**; Cloudflare only hosts the **D1** database,
+> which the app reaches via REST API. All env vars (including Cloudflare ones)
+> go on Vercel. The `wrangler d1 execute` command in step 1 is just CLI access
+> to the database — it has nothing to do with hosting.
 
 ## 3. Discord Developer Portal
 
-- **Bot → Privileged Gateway Intents** → attiva **Server Members Intent**.
-  (Non serve Message Content.)
-- Invita il bot con i permessi: **Manage Roles** (e i permessi base di un bot).
+- **Bot → Privileged Gateway Intents** → enable **Server Members Intent**.
+  (Message Content Intent is not needed.)
+- Invite the bot with the following permissions: **Manage Roles** (plus standard bot permissions).
 
-## 4. Gerarchia ruoli (importante!)
+## 4. Role Hierarchy (important!)
 
-Server → Impostazioni → Ruoli: trascina il ruolo del **bot SOPRA** tutti i 10
-ruoli rank e sopra il ruolo "linked". Discord non permette di assegnare ruoli
-che stanno più in alto del ruolo del bot.
+Server → Settings → Roles: drag the **bot's role ABOVE** all 10 rank roles and above the "linked" role. Discord does not allow bots to assign roles that are higher than their own role.
 
-## 5. Avvio del bot
+## 5. Starting the bot
 
 ```bash
 cd "Discord bot"
 pip install -r requirements.txt
-# crea il file .env partendo da .env.example e compila i valori
-python "bot di discord.py"
+# create the .env file from .env.example and fill in the values
+python main.py
 ```
 
-Se vedi `✅ VoidBot online` e `✅ Comandi slash sincronizzati`, è tutto ok.
+If you see `✅ VoidBot online` and slash commands synced, everything is working.
 
 ---
 
-## Come funziona il collegamento
+## How account linking works
 
-1. L'utente va sul suo profilo VoidCyber → sezione **// Discord** → genera un
-   codice monouso (8 caratteri, scade in 10 minuti).
-2. Su Discord scrive `/link CODICE`.
-3. Il bot manda codice + Discord ID a VoidCyber, che verifica e salva il link.
-4. Il bot assegna subito il ruolo del rank + il ruolo "linked".
-5. Un task in background (ogni 15 min) tiene i ruoli allineati all'XP del sito.
-   Anche `/rank` e `/link` aggiornano il ruolo all'istante.
+1. The user goes to their VoidCyber profile → **// Discord** section → generates a one-time code (8 characters, expires in 10 minutes).
+2. On Discord they run `/link CODE`.
+3. The bot sends the code + Discord ID to VoidCyber, which verifies and saves the link.
+4. The bot immediately assigns the rank role + the "linked" role.
+5. A background task (every 15 min) keeps roles in sync with the site's XP. `/rank` and `/link` also sync instantly.
 
-Un codice è usabile **una sola volta** e un account Discord può essere collegato
-a **un solo** profilo VoidCyber (e viceversa). Per scollegare: `/unlink`.
+A code can only be used **once** and a Discord account can only be linked to **one** VoidCyber profile (and vice versa). To unlink: `/unlink`.
