@@ -6,3 +6,4 @@ shop_state.json
 database_xp.json
 *.json
 !.env.example
+desktop.ini
